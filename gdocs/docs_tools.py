@@ -85,12 +85,11 @@ async def get_doc_from_template(
         docs_service.documents().get(documentId=template_id).execute
     )
     file_data = doc.get("body")
-    media = io.BytesIO(file_data)
 
     created_file = await asyncio.to_thread(
         drive_service.files().create(
             body=file_metadata,
-            media_body=MediaIoBaseUpload(media, mimetype=file_metadata['mimeType'], resumable=True),
+            media_body=file_data,
             fields='id, name, webViewLink',
             supportsAllDrives=True
         ).execute
