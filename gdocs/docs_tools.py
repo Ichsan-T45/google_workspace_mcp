@@ -7,7 +7,7 @@ import logging
 import asyncio
 import io
 
-from googleapiclient.http import MediaIoBaseDownload
+from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 
 # Auth & server utilities
 from auth.service_decorator import require_google_service, require_multiple_services
@@ -46,6 +46,60 @@ from gdocs.managers import (
 )
 
 logger = logging.getLogger(__name__)
+
+@server.tool()
+@handle_http_errors("get_doc_from_template", is_read_only=True, service_type="docs")
+@require_multiple_services([
+    {"service_type": "drive", "scopes": "drive_read", "param_name": "drive_service"},
+    {"service_type": "docs", "scopes": "docs_read", "param_name": "docs_service"}
+])
+async def get_doc_from_template(
+    drive_service,
+    docs_service,
+    user_google_email: str,
+    folder_id:str,
+    template_id:str,
+    file_name:str
+) -> str:
+    """
+    Creates a new google docs file in Google Drive based on provided template.
+
+    Args:
+        user_google_email (str): The user's Google email address. Required.
+        file_name (str): The name for the new file.
+        template_id (str): Google docs id for template docs.
+        folder_id (str): The ID of the parent folder. Defaults to 'root'. For shared drives, this must be a folder ID within the shared drive.
+
+    Returns:
+        str: Confirmation message of the successful file creation with file link.
+    """
+    logger.debug(f"[get_doc] Doc={template_id}, file_name={file_name}, folder_id={folder_id}, user email={user_google_email}")
+    file_metadata = {
+        'name': file_name,
+        'parents': [folder_id],
+        'mimeType': "application/vnd.google-apps.document"
+    }
+
+        # Get the document
+    doc = await asyncio.to_thread(
+        docs_service.documents().get(documentId=template_id).execute
+    )
+    file_data = doc.get("body")
+    media = io.BytesIO(file_data)
+
+    created_file = await asyncio.to_thread(
+        drive_service.files().create(
+            body=file_metadata,
+            media_body=MediaIoBaseUpload(media, mimetype=file_metadata['mimeType'], resumable=True),
+            fields='id, name, webViewLink',
+            supportsAllDrives=True
+        ).execute
+    )
+
+    link = created_file.get('webViewLink', 'No link available')
+    confirmation_message = f"Successfully created file '{created_file.get('name', file_name)}' (ID: {created_file.get('id', 'N/A')}) in folder '{folder_id}' for {user_google_email}. Link: {link}"
+    logger.info(f"Successfully created file. Link: {link}")
+    return confirmation_message
 
 @server.tool()
 @handle_http_errors("get_doc", is_read_only=True, service_type="docs")
@@ -154,7 +208,7 @@ async def get_doc(
     doc = await asyncio.to_thread(
         service.documents().get(documentId=document_id).execute
     )
-    
+
     import json
     link = f"https://docs.google.com/document/d/{document_id}/edit"
     return f"Document structure analysis for {document_id}:\n\n{json.dumps(dict(doc), indent=2)}\n\nLink: {link}"
