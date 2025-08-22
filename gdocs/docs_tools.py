@@ -64,6 +64,9 @@ async def get_doc(
     - Locating existing tables and their positions on the detailed level
     - Getting document statistics and complexity info on the detailed level
 
+    CRITICAL FOR TABLE OPERATIONS:
+    ALWAYS call this BEFORE starting sequence of modification action to make sure accurate references.
+
     WHAT THE OUTPUT SHOWS:
     {
         "documentId": string,
