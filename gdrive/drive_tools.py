@@ -300,6 +300,53 @@ async def create_drive_file(
     confirmation_message = f"Successfully created file '{created_file.get('name', file_name)}' (ID: {created_file.get('id', 'N/A')}) in folder '{folder_id}' for {user_google_email}. Link: {link}"
     logger.info(f"Successfully created file. Link: {link}")
     return confirmation_message
+@server.tool()
+@handle_http_errors("copy_drive_file", service_type="drive")
+@require_google_service("drive", "drive_file")
+async def copy_drive_file(
+    service,
+    user_google_email: str,
+    file_id: str,
+    new_file_name: Optional[str] = None,
+    folder_id: str = 'root',
+) -> str:
+    """
+    Copies an existing file in Google Drive to a specified folder.
+    Supports copying files within shared drives.
+
+    Args:
+        user_google_email (str): The user's Google email address. Required.
+        file_id (str): The ID of the file to be copied.
+        new_file_name (Optional[str]): The name for the new file. If not provided,
+                                      the name will be "Copy of [original_file_name]".
+        folder_id (str): The ID of the parent folder where the copy will be placed.
+                         Defaults to 'root'.
+
+    Returns:
+        str: Confirmation message of the successful file copy with file link.
+    """
+    logger.info(f"[copy_drive_file] Invoked. Email: '{user_google_email}', File ID: {file_id}, New File Name: {new_file_name}, Folder ID: {folder_id}")
+
+    # Set the new file name. If not provided, Drive API will use "Copy of [original name]".
+    file_metadata = {
+        'name': new_file_name,
+        'parents': [folder_id],
+    }
+    
+    # We use asyncio.to_thread because the Drive API call is blocking.
+    copied_file = await asyncio.to_thread(
+        service.files().copy(
+            fileId=file_id,
+            body=file_metadata,
+            fields='id, name, webViewLink',
+            supportsAllDrives=True
+        ).execute
+    )
+
+    link = copied_file.get('webViewLink', 'No link available')
+    confirmation_message = f"Successfully copied file '{copied_file.get('name', new_file_name)}' (ID: {copied_file.get('id', 'N/A')}) to folder '{folder_id}' for {user_google_email}. Link: {link}"
+    logger.info(f"Successfully copied file. Link: {link}")
+    return confirmation_message
 
 @server.tool()
 @handle_http_errors("get_drive_file_permissions", is_read_only=True, service_type="drive")
