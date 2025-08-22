@@ -89,7 +89,7 @@ async def get_doc_from_template(
     created_file = await asyncio.to_thread(
         drive_service.files().create(
             body=file_metadata,
-            media_body=file_data,
+            media_body=str(file_data),
             fields='id, name, webViewLink',
             supportsAllDrives=True
         ).execute
