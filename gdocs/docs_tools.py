@@ -48,6 +48,119 @@ from gdocs.managers import (
 logger = logging.getLogger(__name__)
 
 @server.tool()
+@handle_http_errors("get_doc", is_read_only=True, service_type="docs")
+@require_google_service("docs", "docs_read")
+async def get_doc(
+    service,
+    user_google_email: str,
+    document_id: str,
+    detailed: bool = False,
+) -> str:
+    """
+    Retrieves a Google Docs document.
+
+    USE THIS FOR:
+    - Understanding document before making changes on the detailed level
+    - Locating existing tables and their positions on the detailed level
+    - Getting document statistics and complexity info on the detailed level
+
+    WHAT THE OUTPUT SHOWS:
+    {
+        "documentId": string,
+        "title": string,
+        "tabs": [
+            {
+            object (Tab)
+            }
+        ],
+        "revisionId": string,
+        "suggestionsViewMode": enum (SuggestionsViewMode),
+        "body": {
+            object (Body)
+        },
+        "headers": {
+            string: {
+            object (Header)
+            },
+            ...
+        },
+        "footers": {
+            string: {
+            object (Footer)
+            },
+            ...
+        },
+        "footnotes": {
+            string: {
+            object (Footnote)
+            },
+            ...
+        },
+        "documentStyle": {
+            object (DocumentStyle)
+        },
+        "suggestedDocumentStyleChanges": {
+            string: {
+            object (SuggestedDocumentStyle)
+            },
+            ...
+        },
+        "namedStyles": {
+            object (NamedStyles)
+        },
+        "suggestedNamedStylesChanges": {
+            string: {
+            object (SuggestedNamedStyles)
+            },
+            ...
+        },
+        "lists": {
+            string: {
+            object (List)
+            },
+            ...
+        },
+        "namedRanges": {
+            string: {
+            object (NamedRanges)
+            },
+            ...
+        },
+        "inlineObjects": {
+            string: {
+            object (InlineObject)
+            },
+            ...
+        },
+        "positionedObjects": {
+            string: {
+            object (PositionedObject)
+            },
+            ...
+        }
+    }
+
+    Args:
+        user_google_email: User's Google email address
+        document_id: ID of the document to inspect
+        detailed: Whether to return detailed structure information
+
+    Returns:
+        str: JSON string containing google document resources
+    """
+    logger.debug(f"[get_doc] Doc={document_id}, detailed={detailed}")
+
+    # Get the document
+    doc = await asyncio.to_thread(
+        service.documents().get(documentId=document_id).execute
+    )
+    
+    import json
+    link = f"https://docs.google.com/document/d/{document_id}/edit"
+    return f"Document structure analysis for {document_id}:\n\n{json.dumps(dict(doc), indent=2)}\n\nLink: {link}"
+
+
+@server.tool()
 @handle_http_errors("search_docs", is_read_only=True, service_type="docs")
 @require_google_service("drive", "drive_read")
 async def search_docs(
