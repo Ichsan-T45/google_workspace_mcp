@@ -50,7 +50,7 @@ logger = logging.getLogger(__name__)
 @server.tool()
 @handle_http_errors("get_doc_from_template", is_read_only=True, service_type="docs")
 @require_multiple_services([
-    {"service_type": "drive", "scopes": "drive_read", "param_name": "drive_service"},
+    {"service_type": "drive", "scopes": "drive_file", "param_name": "drive_service"},
     {"service_type": "docs", "scopes": "docs_read", "param_name": "docs_service"}
 ])
 async def get_doc_from_template(
